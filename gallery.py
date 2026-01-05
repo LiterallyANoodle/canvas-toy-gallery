@@ -1,5 +1,6 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
+import psycopg2
 
 class GalleryConfiguration:
 
@@ -27,12 +28,41 @@ class GalleryServer(BaseHTTPRequestHandler):
         # read path for image number
 
         # find image in database or the 404 image
+        try:
+            print(f"Connecting to database {config['db_name']} on {config['db_host_name']}")
+            conn = psycopg2.connect(
+                dbname=config['db_name'],
+                user=config['db_user'],
+                password=config['db_pwd'],
+                host=config['db_host_name']
+            )
+            cur = conn.cursor()
+
+            print('PostgreSQL database version:')
+            cur.execute('SELECT version()')
+            db_version = cur.fetchone()
+            print(db_version)
+
+            cur.close()
+        
+        except (Exception, psycopg2.DatabaseError) as error:
+            print(error)
+        finally:
+            if conn is not None:
+                conn.close()
+                print('Database conneciton closed.')
 
         # send back image in response
-
-        pass
 
 if __name__ == "__main__":
     config = GalleryConfiguration().configuration
     web_server = HTTPServer((config['host_name'], config['server_port']), GalleryServer)
     print(f"Server started http://{config['host_name']}:{config['server_port']}")
+
+    try:
+        web_server.serve_forever()
+    except KeyboardInterrupt:
+        print("Received interrupt command.")
+
+    web_server.server_close()
+    print("Server stopped.")
